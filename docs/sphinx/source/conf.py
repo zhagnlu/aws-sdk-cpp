@@ -16,18 +16,17 @@ import sys
 import os
 import pathlib
 
-
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 from doxygen.doxygen_wrapper import DoxygenWrapper, DOXYGEN_OUTPUT_DIR
 
 sdk_root = str(pathlib.Path(os.getcwd()).parent.parent.parent.resolve())
+sdk_root = os.getenv("DOCS_SDK_ROOT", sdk_root)
 print(f"SDK root for docs generation: {sdk_root}")
 
 doxygen_wrapper = DoxygenWrapper(None, sdk_root)
 doxygen_output = f"{sdk_root}/{DOXYGEN_OUTPUT_DIR}"
-doxygen_output = doxygen_wrapper.generate_all()
-doxygen_wrapper.generate_apidoc(f"{sdk_root}/docs/sphinx/source/api")
+doxygen_output = os.getenv("DOCS_DOXYGEN_OUTPUT_DIR", doxygen_output)
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -41,24 +40,39 @@ doxygen_wrapper.generate_apidoc(f"{sdk_root}/docs/sphinx/source/api")
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['breathe']
+extensions = ["breathe", "sphinx.ext.intersphinx"]
 extensions.append("sphinx_remove_toctrees")
 
 # remove_from_toctrees = ["api/sdk_libraries/*/*/*",
 #                         "api/generated/**/*/*"]
 
-core_library = {"aws-cpp-sdk-core": f"{doxygen_output}/sdk_core/aws-cpp-sdk-core/xml"}
-high_level_libraries = {key: f"{doxygen_output}/sdk_libraries/{key}/xml"
-                        for key in os.listdir(f"{doxygen_output}/sdk_libraries")}
-generated_clients = {key: f"{doxygen_output}/generated/{key}/xml"
-                     for key in os.listdir(f"{doxygen_output}/generated")}
+core_library = {"aws-cpp-sdk-core": f"{doxygen_output}/core/aws-cpp-sdk-core/xml"}
+high_level_libraries = {key: f"{doxygen_output}/libs/{key}/xml"
+                        for key in os.listdir(f"{doxygen_output}/libs")}
+generated_clients = {key: f"{doxygen_output}/clients/{key}/xml"
+                     for key in os.listdir(f"{doxygen_output}/clients")}
 
 # Breathe Configuration
 breathe_projects = generated_clients.copy()
 breathe_projects.update(high_level_libraries)
 breathe_projects.update(core_library)
 
-breathe_default_project = "aws-cpp-sdk-core"
+component_to_generate = "aws-cpp-sdk-s3"
+component_to_generate = os.getenv("DOCS_COMPONENT", component_to_generate)
+breathe_projects = {component_to_generate: breathe_projects[component_to_generate]}
+
+intersphinx_mapping = dict()
+dependencies = os.getenv("DOCS_DEPENDENCIES", "")
+base_build_dir = os.getenv("DOCS_BASE_BUILD_DIR", "../../build")
+if component_to_generate != "aws-cpp-sdk-core":
+    intersphinx_mapping["aws-cpp-sdk-core"] = (".", f"{base_build_dir}/aws-cpp-sdk-core/objects.inv")
+for dependency in dependencies.split(";"):
+    if dependency:
+        intersphinx_mapping[dependency] = (".", f"{base_build_dir}/{dependency}/objects.inv")
+
+print(f"Intersphinx mapping = \n{intersphinx_mapping}\n\n")
+
+breathe_default_project = component_to_generate
 breathe_default_members = ('members', 'undoc-members')
 
 # Add any paths that contain templates here, relative to this directory.
@@ -70,8 +84,8 @@ source_suffix = '.rst'
 # The encoding of source files.
 #source_encoding = 'utf-8-sig'
 
-# The master toctree document.
-master_doc = 'index'
+# The root toctree document.
+root_doc = "api/index"
 
 # General information about the project.
 project = 'AWS SDK for C++'

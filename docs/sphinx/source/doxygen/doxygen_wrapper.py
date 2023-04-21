@@ -35,7 +35,7 @@ APIDOC_MODULE_RST_REFERENCE = \
 
 
 class DoxygenWrapper(object):
-    def __init__(self, sdk_version, sdk_root):
+    def __init__(self, sdk_version, sdk_root, output_dir=DOXYGEN_OUTPUT_DIR):
         if not DOXYGEN_EXE:
             raise FileNotFoundError("Doxygen executable is missing!")
         self.doxygen_version = re.search("""^\d+\.\d+\.\d+""", self._call_doxygen("--version"))[0]
@@ -48,6 +48,9 @@ class DoxygenWrapper(object):
         else:
             self.sdk_version = self._read_sdk_version(sdk_root)
         self.sdk_root = sdk_root
+        self.output_dir = output_dir
+        if not self.output_dir:
+            self.output_dir = DOXYGEN_OUTPUT_DIR
 
         self.components_in_src = set(os.listdir(sdk_root + "/src"))
         self.components_in_src.remove("aws-cpp-sdk-core")
@@ -122,11 +125,11 @@ class DoxygenWrapper(object):
 
     def _get_doc_path(self, component_name):
         if component_name == "aws-cpp-sdk-core":
-            return f"{DOXYGEN_OUTPUT_DIR}/sdk_core/{component_name}"
+            return f"{self.output_dir}/core/{component_name}"
         elif component_name in self.components_in_src:
-            return f"{DOXYGEN_OUTPUT_DIR}/sdk_libraries/{component_name}"
+            return f"{self.output_dir}/libs/{component_name}"
         else:
-            return f"{DOXYGEN_OUTPUT_DIR}/generated/{component_name}"
+            return f"{self.output_dir}/clients/{component_name}"
 
     def _get_tagfiles_dependency(self, component_name, dependency_map):
         separator = " \\\n                         "
@@ -170,31 +173,33 @@ class DoxygenWrapper(object):
 
         thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=max(multiprocessing.cpu_count() - 1, 1))
         client_futures = {}
-        doxy_groups = set(os.listdir(f"{self.sdk_root}/{DOXYGEN_OUTPUT_DIR}"))
+        doxy_groups = set(os.listdir(f"{self.sdk_root}/{self.output_dir}"))
         for group in doxy_groups:
-            doxy_components = set(os.listdir(f"{self.sdk_root}/{DOXYGEN_OUTPUT_DIR}/{group}"))
+            doxy_components = set(os.listdir(f"{self.sdk_root}/{self.output_dir}/{group}"))
             for component in doxy_components:
                 apidoc_args = ["breathe-apidoc",
                                "-f",
                                f"-o", f"{rst_destination}/{group}/{component}",
                                "-p", f"{component}",
-                               "-g", "class,struct,namespace",
-                               f"{self.sdk_root}/{DOXYGEN_OUTPUT_DIR}/{group}/{component}/xml"]
+                                "-g", "class,struct,namespace",
+                               f"{self.sdk_root}/{self.output_dir}/{group}/{component}/xml"]
+                apidoc_args_str = str(apidoc_args).replace("', '", " ")
+                print(f"Calling apidoc with {apidoc_args_str}")
                 thread_pool.submit(subprocess.run(apidoc_args))
         for client, future in client_futures.items():
             future.result()
 
         # Remove all items from core repeated in other modules
         core_rst = set()
-        core_modules = os.listdir(f"{rst_destination}/sdk_core")
+        core_modules = os.listdir(f"{rst_destination}/core")
         for module in core_modules:
-            module_rst_group = os.listdir(f"{rst_destination}/sdk_core/{module}")
+            module_rst_group = os.listdir(f"{rst_destination}/core/{module}")
             for item in module_rst_group:
-                if os.path.isdir(f"{rst_destination}/sdk_core/{module}/{item}"):
-                    core_rst.update(os.listdir(f"{rst_destination}/sdk_core/{module}/{item}"))
+                if os.path.isdir(f"{rst_destination}/core/{module}/{item}"):
+                    core_rst.update(os.listdir(f"{rst_destination}/core/{module}/{item}"))
 
         for group in doxy_groups:
-            if group == "sdk_core":
+            if group == "core":
                 continue
             modules = set(os.listdir(f"{rst_destination}/{group}"))
             for module in modules:
@@ -208,7 +213,6 @@ class DoxygenWrapper(object):
                                 module_rst in core_rst:
                             print(f"Removing duplicated core item {module_rst} from {module}")
                             os.remove(f"{rst_destination}/{group}/{module}/{module_rst_dir}/{module_rst}")
-
 
         jinja2_env = jinja2.Environment(autoescape=jinja2.select_autoescape(['html', 'xml']))
         jinja2_template = jinja2_env.from_string(APIDOC_MODULE_RST_REFERENCE)
@@ -249,7 +253,7 @@ class DoxygenWrapper(object):
         for client, future in client_futures.items():
             future.result()
 
-        return f"{self.sdk_root}/{DOXYGEN_OUTPUT_DIR}"
+        return dependency_map
 
 
 if __name__ == '__main__':
