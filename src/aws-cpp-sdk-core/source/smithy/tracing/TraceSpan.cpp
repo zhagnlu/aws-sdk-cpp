@@ -62,7 +62,7 @@ void TraceSpan::flushEvents() noexcept {
         }
 
         if (!eventsMove.empty()) {
-            probe->dispatchEvents(eventsMove);
+            probe->DispatchEvents(eventsMove);
         }
     }
 }

@@ -20,7 +20,7 @@ public:
     explicit TestProbe(Aws::Vector<TraceEvent> &receivedEvents) :
         m_receivedEvents(receivedEvents) {}
 
-    void dispatchEvents(const Aws::Vector<TraceEvent> &events) override {
+    void DispatchEvents(const Aws::Vector<TraceEvent> &events) override {
         m_receivedEvents.insert(m_receivedEvents.end(), events.begin(), events.end());
     }
 

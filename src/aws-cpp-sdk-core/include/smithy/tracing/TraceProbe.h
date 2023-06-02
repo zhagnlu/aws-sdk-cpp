@@ -23,7 +23,7 @@ namespace smithy {
             public:
                 virtual ~TraceProbe() = default;
 
-                virtual void dispatchEvents(const Aws::Vector<TraceEvent> &events) = 0;
+                virtual void DispatchEvents(const Aws::Vector<TraceEvent> &events) = 0;
             };
         }
     }

@@ -24,7 +24,7 @@ namespace smithy {
              */
             class SMITHY_API RootTraceProbe : public TraceProbe {
             public:
-                void dispatchEvents(const Aws::Vector<TraceEvent> &events) override;
+                void DispatchEvents(const Aws::Vector<TraceEvent> &events) override;
 
                 void registerProbe(Aws::UniquePtr<TraceProbe> probe);
 

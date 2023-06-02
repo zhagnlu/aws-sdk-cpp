@@ -6,9 +6,9 @@
 
 using namespace smithy::components::tracing;
 
-void RootTraceProbe::dispatchEvents(const Aws::Vector<TraceEvent>& events) {
+void RootTraceProbe::DispatchEvents(const Aws::Vector<TraceEvent>& events) {
     for (auto& probe : traceProbes) {
-        probe->dispatchEvents(events);
+        probe->DispatchEvents(events);
     }
 }
 
