@@ -164,6 +164,7 @@ static const char* CURL_HTTP_CLIENT_TAG = "CurlHttpClient";
 
 static size_t WriteData(char* ptr, size_t size, size_t nmemb, void* userdata)
 {
+    std::cout << "xxxxxxxxxxxxxxxxxxxx" << std::string(ptr) << std::endl;
     if (ptr)
     {
         CurlWriteCallbackContext* context = reinterpret_cast<CurlWriteCallbackContext*>(userdata);
@@ -171,6 +172,7 @@ static size_t WriteData(char* ptr, size_t size, size_t nmemb, void* userdata)
         const CurlHttpClient* client = context->m_client;
         if(!client->ContinueRequest(*context->m_request) || !client->IsRequestProcessingEnabled())
         {
+            std::cout << "xxxxxxxxxxxxxxxxxxxx return quickly" << std::endl;
             return 0;
         }
 
@@ -187,13 +189,24 @@ static size_t WriteData(char* ptr, size_t size, size_t nmemb, void* userdata)
         }
 
         response->GetResponseBody().write(ptr, static_cast<std::streamsize>(sizeToWrite));
+        std::cout << "xxxxxxxxxx111111111xxxxxxxxxx" << std::string(ptr) << std::endl;
+        auto& iostream = response->GetResponseBody();
+        std::cout << &iostream << std::endl;
+        auto* buffer = iostream.rdbuf();
+        char bufferPtr[100];
+        auto size = buffer->in_avail();
+        buffer->sgetn(bufferPtr, size);
+        std::cout << (void*)bufferPtr << std::endl;
+        std::cout << "Buffer pointer: " << std::string(bufferPtr) << std::endl; 
         if (context->m_request->IsEventStreamRequest())
         {
+            std::cout << "1111111" << std::endl;
             response->GetResponseBody().flush();
         }
         auto& receivedHandler = context->m_request->GetDataReceivedEventHandler();
         if (receivedHandler)
         {
+            std::cout << "222222" << std::endl;
             receivedHandler(context->m_request, context->m_response, static_cast<long long>(sizeToWrite));
         }
 
